@@ -10,6 +10,30 @@ From here you can adjust the joint angles to find thetas, use the gripper to ext
 to find the position of the wrist center. These newly generated test cases can be added to the test_cases dictionary.
 '''
 
+def getEulerAngles(R):
+    rtd = 180/np.pi
+    dtr = np.pi/180
+
+    ### Identify useful terms from rotation matrix
+    r31 = R[2,0]
+    r11 = R[0,0]
+    r21 = R[1,0]
+    r32 = R[2,1]
+    r33 = R[2,2]
+
+
+    ### Euler Angles from Rotation Matrix
+      # sympy synatx for atan2 is atan2(y, x)
+    beta  = atan2(-r31, sqrt(r11 * r11 + r21 * r21)) * rtd
+    gamma = atan2(r32, r33) * rtd
+    alpha = simplify(atan2(r21, r11) * rtd)
+
+    print("alpha is = ",alpha*dtr, "radians", "or ", alpha, "degrees")
+    print("beta  is = ",beta*dtr,  "radians", "or ", beta, "degrees")
+    print("gamma is = ",gamma*dtr, "radians", "or ", gamma, "degrees")
+
+
+
 test_cases = {1:[[[2.16135,-1.42635,1.55109],
                   [0.708611,0.186356,-0.157931,0.661967]],
                   [1.89451,-1.44302,1.69366],
@@ -158,7 +182,7 @@ def test_code(test_case):
     R_y = Matrix([[ cos(-np.pi/2), 0, sin(-np.pi/2)],
                   [             0, 1, 0,],
                   [ -sin(-np.pi/2), 0, cos(-np.pi/2)]])
-    R_corr = simplify(R_z * R_y)
+    R_corr = (R_z * R_y)
 
     Rrpy = Ryaw * Rpitch * Rroll * R_corr
 
@@ -201,13 +225,23 @@ def test_code(test_case):
     print("Theta 2: %.3f"%theta2)
     print("Theta 3: %.3f"%theta3)
 
-    
-    # theta1 = 0
-    # theta2 = 0
-    # theta3 = 0
-    theta4 = 0
-    theta5 = 0
-    theta6 = 0
+    ###################################### 
+    ## Solve Orientation IK (Theta 4-6) ##
+    ######################################
+        
+    R0_3 = T0_3[0:3,0:3].evalf(subs={q1:theta1, q2:theta2, q3:theta3})
+
+    R3_6 = R0_3.inv("LU") * Rrpy
+    print("R3_6",R3_6)
+    theta5 = acos( R3_6[1,2])
+    print("th4():",(-R3_6[0,2] / sin(theta5) +1)%2-1)
+    print("th4():",-R3_6[0,2] / sin(theta5) )
+    theta4 = acos((-R3_6[0,2] / sin(theta5) +1)%2-1)
+    theta6 = acos( R3_6[1,0] / sin(theta5))
+
+    print("Theta 4: %.3f"%theta4)
+    print("Theta 5: %.3f"%theta5)
+    print("Theta 6: %.3f"%theta6)
 
     ## 
     ########################################################################################
@@ -216,7 +250,20 @@ def test_code(test_case):
     ## For additional debugging add your forward kinematics here. Use your previously calculated thetas
     ## as the input and output the position of your end effector as your_ee = [x,y,z]
 
-    print("T0_4: ",T0_4.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:0}))
+    vals = {q1:theta1,
+            q2:theta2,
+            q3:theta3,
+            q4:theta4,
+            q5:theta5,
+            q6:theta6}
+
+    print("T0_4: ",T0_4.evalf(subs=vals))
+    print("T0_G: ",T0_G.evalf(subs=vals))
+    R_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]]))
+    T_tot = T0_G * R_corr
+    print("T_tot: ",T_tot.evalf(subs=vals))
+
+    getEulerAngles(T_tot.evalf(subs=vals)[0:4,0:4])
 
     ## (OPTIONAL) YOUR CODE HERE!
 
@@ -276,6 +323,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 3
+    test_case_number = 1
 
     test_code(test_cases[test_case_number])
