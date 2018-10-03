@@ -86,9 +86,9 @@ def test_code(test_case):
     ########################################################################################
     ## 
 
-
-    ### Forward Kinematics
-
+    ##########################
+    ### Forward Kinematics ###
+    ##########################
     ### Create symbols for joint variables
     q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8') # theta_i
     d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
@@ -156,6 +156,10 @@ def test_code(test_case):
     T0_6 = (T0_5 * T5_6)
     T0_G = (T0_6 * T6_G)
 
+    ##########################
+    ### Inverse Kinematics ###
+    ##########################
+
     ## Extract end-effector position and orientation from request
     # px,py,pz = end-effector position
     px = req.poses[x].position.x
@@ -171,17 +175,17 @@ def test_code(test_case):
                    [ sin(yaw),  cos(yaw), 0],
                    [ 0, 0, 1]])
     Rpitch = Matrix([[ cos(pitch), 0, sin(pitch)],
-                  [             0, 1, 0,],
-                  [ -sin(pitch), 0, cos(pitch)]])
+                     [          0, 1, 0],
+                     [-sin(pitch), 0, cos(pitch)]])
     Rroll = Matrix([[ 1, 0, 0],
                     [ 0, cos(roll), -sin(roll)],
                     [ 0, sin(roll),  cos(roll)]])
     R_z = Matrix([[ cos(np.pi), -sin(np.pi), 0],
-              [ sin(np.pi),  cos(np.pi), 0],
-              [       0,        0, 1]])
+                  [ sin(np.pi),  cos(np.pi), 0],
+                  [ 0, 0, 1]])
     R_y = Matrix([[ cos(-np.pi/2), 0, sin(-np.pi/2)],
                   [             0, 1, 0,],
-                  [ -sin(-np.pi/2), 0, cos(-np.pi/2)]])
+                  [-sin(-np.pi/2), 0, cos(-np.pi/2)]])
     R_corr = (R_z * R_y)
 
     Rrpy = Ryaw * Rpitch * Rroll * R_corr
@@ -197,7 +201,7 @@ def test_code(test_case):
     wy = py - (d6+l)*ny
     wz = pz - (d6+l)*nz
 
-    print("WC: ",wx,wy,wz)
+    # print("WC: ",wx,wy,wz)
 
     ################################### 
     ## Solve Position IK (Theta 1-3) ##
@@ -205,20 +209,19 @@ def test_code(test_case):
     # Solve Theta 1
     theta1 = atan2(wy,wx) # From birds-eye, get angle using projection onto XY-plane
 
-    # Solve Theta 2
     # First get Link2 global position
-    print("T0_2: ", T0_2.evalf(subs={q1:theta1, q2:0}))
+    # print("T0_2: ", T0_2.evalf(subs={q1:theta1, q2:0}))
     x2, y2, z2 = T0_2.evalf(subs={q1:theta1, q2:0})[0:3,3] 
+    # print("Link2: ",x2,y2,z2)
 
-    print("Link2: ",x2,y2,z2)
 
+    # Solve Theta 2 and Theta 3
     flr = sqrt( (wx-x2)**2 + (wy-y2)**2 ) # Projection of hypotenuse onto xy-plane
     hyp = sqrt( (wx-x2)**2 + (wy-y2)**2 + (wz-z2)**2) # distance from Link2 to WristCenter
     l2 = 1.25 # distance from Link2 to Link3
     l3 = sqrt((0.96+0.54)**2 + (-0.054)**2) # Distance from Link3 to WC (Link5)
-    print("Flr: %.3f, Hyp: %.3f, l2: %.3f, l3: %.3f"%(flr, hyp, l2, l3))
+    # print("Flr: %.3f, Hyp: %.3f, l2: %.3f, l3: %.3f"%(flr, hyp, l2, l3))
     theta2 = np.pi/2 - acos(flr/hyp) - acos( (l3**2 - l2**2 - hyp**2) / ( -2*l2*hyp))
-
     theta3 = np.pi/2 - acos( (hyp**2 - l2**2 - l3**2) / (-2*l2*l3))
 
     print("Theta 1: %.3f"%theta1)
@@ -230,23 +233,22 @@ def test_code(test_case):
     #####9#################################
     print("\n----------\n-- IK Orientation --\n----------")
     T0_3_num = T0_3.evalf(subs={q1:theta1, q2:theta2, q3:theta3})
-    print("T0_3_num:",T0_3_num)
+    # print("T0_3_num:",T0_3_num)
     R0_3 = T0_3_num[0:3,0:3]
-    print("R0_3",R0_3)
-    print("R0_3.inv()",R0_3.inv("LU"))
-    print("Eye",R0_3*R0_3.inv("LU"))
-    print("Eye",R0_3.inv("LU")*R0_3)
-    print("")
+    # print("R0_3",R0_3)
+    # print("R0_3.inv()",R0_3.T)
+    # print("Eye",R0_3*R0_3.T)
+    # print("Eye",R0_3.T*R0_3)
+    # print("")
 
-    R3_6 = R0_3.inv("LU") * Rrpy
-    print("R3_6",R3_6)
+    # R3_6 = R0_3.inv("LU") * Rrpy
+    R3_6 = R0_3.T * Rrpy
+    # print("R3_6",R3_6)
 
-    theta5 = acos( (R3_6[1,2] +1 )%2 -1)
-    print("Theta 5: %.3f"%theta5)
-
-    print("th4():",(-R3_6[0,2] / sin(theta5) +1)%2-1)
-    print("th4():",-R3_6[0,2] / sin(theta5) )
-    theta4 = acos((-R3_6[0,2] / sin(theta5) +1)%2-1)
+    # print("th4():",(-R3_6[0,2] / sin(theta5) +1)%2-1)
+    # print("th4():",-R3_6[0,2] / sin(theta5) )
+    theta5 = acos( R3_6[1,2] )
+    theta4 = acos(-R3_6[0,2] / sin(theta5))
     theta6 = acos( R3_6[1,0] / sin(theta5))
 
     print("Theta 4: %.3f"%theta4)
@@ -267,15 +269,15 @@ def test_code(test_case):
             q5:theta5,
             q6:theta6}
 
-    print("T0_4: ",T0_4.evalf(subs=vals))
-    print("T0_G: ",T0_G.evalf(subs=vals))
+    # print("T0_4: ",T0_4.evalf(subs=vals))
+    # print("T0_G: ",T0_G.evalf(subs=vals))
     R_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]]))
     T_tot = T0_G * R_corr
-    print("T_tot: ",T_tot.evalf(subs=vals))
+    # print("T_tot: ",T_tot.evalf(subs=vals))
 
     getEulerAngles(T_tot.evalf(subs=vals)[0:4,0:4])
 
-
+    
 
 
     ## (OPTIONAL) YOUR CODE HERE!
