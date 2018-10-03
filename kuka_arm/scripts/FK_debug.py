@@ -13,12 +13,40 @@ from numpy import array
 from sympy import symbols, cos, sin, pi, simplify, sqrt, atan2
 from sympy.matrices import Matrix
 
+import time
+
+start = int(round(time.time() * 1000))
+
+
+def getEulerAngles(R):
+    rtd = 180/np.pi
+    dtr = np.pi/180
+
+    ### Identify useful terms from rotation matrix
+    r31 = R[2,0]
+    r11 = R[0,0]
+    r21 = R[1,0]
+    r32 = R[2,1]
+    r33 = R[2,2]
+
+
+    ### Euler Angles from Rotation Matrix
+      # sympy synatx for atan2 is atan2(y, x)
+    beta  = atan2(-r31, sqrt(r11 * r11 + r21 * r21)) * rtd
+    gamma = atan2(r32, r33) * rtd
+    alpha = simplify(atan2(r21, r11) * rtd)
+
+    print("alpha is = ",alpha*dtr, "radians", "or ", alpha, "degrees")
+    print("beta  is = ",beta*dtr,  "radians", "or ", beta, "degrees")
+    print("gamma is = ",gamma*dtr, "radians", "or ", gamma, "degrees")
+
 
 ### Create symbols for joint variables
 q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8') # theta_i
 d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
 a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
 alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
+
 
 ### KUKA KR210
 # DH Parameters
@@ -30,6 +58,9 @@ s = {alpha0: 0,     a0: 0,      d1: 0.75,
      alpha5: -pi/2, a5: 0,      d6: 0,
      alpha6: 0,     a6: 0,      d7: 0.303,  q7: 0
     }
+
+t1 = int(round(time.time() * 1000)) - start
+print("t1: %d  ms"%t1)
 
 ### Homogenous Transforms
 # base_link to link_1
@@ -82,6 +113,10 @@ T6_G = Matrix([[ cos(q7),            -sin(q7),             0,                   
               ])
 T6_G = T6_G.subs(s)
 
+
+t2 = int(round(time.time() * 1000)) - start
+print("t2: %d ms"%t2)
+
 # Composition of Homogenous Transforms
 T0_2 = simplify(T0_1 * T1_2) # base_link to link_2
 T0_3 = simplify(T0_2 * T2_3)
@@ -90,30 +125,53 @@ T0_5 = simplify(T0_4 * T4_5)
 T0_6 = simplify(T0_5 * T5_6)
 T0_G = simplify(T0_6 * T6_G)
 
+t3 = int(round(time.time() * 1000)) - start
+print("t3: %d ms"%t3)
+
 # Correction needed to account for orientation difference btwn defn of 
 # gripper link in URDF and DH Convention
-R_z = Matrix([[ cos(pi), -sin(pi), 0,  0],
-              [ sin(pi),  cos(pi), 0,  0],
+R_z = Matrix([[ cos(np.pi), -sin(np.pi), 0,  0],
+              [ sin(np.pi),  cos(np.pi), 0,  0],
               [       0,        0, 1,  0],
               [       0,        0, 0,  1]])
-R_y = Matrix([[ cos(-pi/2), 0, sin(-pi/2),  0],
+R_y = Matrix([[ cos(-np.pi/2), 0, sin(-np.pi/2),  0],
               [          0, 1, 0,           0],
-              [ -sin(-pi/2), 0, cos(-pi/2), 0],
+              [ -sin(-np.pi/2), 0, cos(-np.pi/2), 0],
               [ 0, 0, 0, 1] ])
 R_corr = simplify(R_z * R_y)
 
+vals = {q1: 1.93, 
+        q2: .13,
+        q3: -0.47, 
+        q4: 0, 
+        q5: 0, 
+        q6: 0}
 
 ### Numerically evaluate transforms (compare with output of tf_echo)
-print("T0_1 = ", T0_1.evalf(subs={q1: 0.65, q2: 0.52, q3: -2.86, q4: 0, q5: 0, q6: 0}))
-print("T0_2 = ", T0_2.evalf(subs={q1: 0.65, q2: 0.52, q3: -2.86, q4: 0, q5: 0, q6: 0}))
+# print("T0_1 = ", T0_1.evalf(subs={q1: 0.65, q2: 0.52, q3: -2.86, q4: 0, q5: 0, q6: 0}))
+# print("T0_2 = ", T0_2.evalf(subs=vals))
 # print("T0_3 = ", T0_3.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
 # print("T0_4 = ", T0_4.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
 # print("T0_5 = ", T0_5.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
 # print("T0_6 = ", T0_6.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
-# print("T0_G = ", T0_G.evalf(subs={q1: 0.65, q2: 0.52, q3: -2.86, q4: 0, q5: 0, q6: 0}))
+# print("T0_G = ", T0_G.evalf(subs=vals))
+
+t4 = int(round(time.time() * 1000)) - start
+print("t4: %d ms"%t4)
 
 
 T_total = simplify(T0_G * R_corr)
+T_tot_num = T_total.evalf(subs=vals)
+print("T_total = ", T_tot_num)
+getEulerAngles(T_tot_num[0:4,0:4])
+
+
+end = int(round(time.time() * 1000)) - start
+print("end: %d ms"%end)
+
+
+
+
 
 
 
