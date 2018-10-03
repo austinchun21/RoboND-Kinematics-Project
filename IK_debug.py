@@ -233,7 +233,8 @@ def test_code(test_case):
 
     R3_6 = R0_3.inv("LU") * Rrpy
     print("R3_6",R3_6)
-    theta5 = acos( R3_6[1,2])
+    theta5 = acos( (R3_6[1,2] +1 )%2 -1)
+    print("Theta 5: %.3f"%theta5)
     print("th4():",(-R3_6[0,2] / sin(theta5) +1)%2-1)
     print("th4():",-R3_6[0,2] / sin(theta5) )
     theta4 = acos((-R3_6[0,2] / sin(theta5) +1)%2-1)
@@ -264,6 +265,9 @@ def test_code(test_case):
     print("T_tot: ",T_tot.evalf(subs=vals))
 
     getEulerAngles(T_tot.evalf(subs=vals)[0:4,0:4])
+
+
+
 
     ## (OPTIONAL) YOUR CODE HERE!
 
@@ -323,6 +327,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 1
+    test_case_number = 2
 
     test_code(test_cases[test_case_number])
