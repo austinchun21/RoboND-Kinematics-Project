@@ -227,14 +227,23 @@ def test_code(test_case):
 
     ###################################### 
     ## Solve Orientation IK (Theta 4-6) ##
-    ######################################
-        
-    R0_3 = T0_3[0:3,0:3].evalf(subs={q1:theta1, q2:theta2, q3:theta3})
+    #####9#################################
+    print("\n----------\n-- IK Orientation --\n----------")
+    T0_3_num = T0_3.evalf(subs={q1:theta1, q2:theta2, q3:theta3})
+    print("T0_3_num:",T0_3_num)
+    R0_3 = T0_3_num[0:3,0:3]
+    print("R0_3",R0_3)
+    print("R0_3.inv()",R0_3.inv("LU"))
+    print("Eye",R0_3*R0_3.inv("LU"))
+    print("Eye",R0_3.inv("LU")*R0_3)
+    print("")
 
     R3_6 = R0_3.inv("LU") * Rrpy
     print("R3_6",R3_6)
+
     theta5 = acos( (R3_6[1,2] +1 )%2 -1)
     print("Theta 5: %.3f"%theta5)
+
     print("th4():",(-R3_6[0,2] / sin(theta5) +1)%2-1)
     print("th4():",-R3_6[0,2] / sin(theta5) )
     theta4 = acos((-R3_6[0,2] / sin(theta5) +1)%2-1)
