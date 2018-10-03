@@ -140,17 +140,18 @@ R_y = Matrix([[ cos(-np.pi/2), 0, sin(-np.pi/2),  0],
               [ 0, 0, 0, 1] ])
 R_corr = simplify(R_z * R_y)
 
-vals = {q1: 1.93, 
-        q2: .13,
-        q3: -0.47, 
-        q4: 0, 
-        q5: 0, 
-        q6: 0}
+vals = {q1: 2.83, 
+        q2: -0.54,
+        q3: 0.49, 
+        q4: 3.94, 
+        q5: -0.81, 
+        q6: 4.44}
 
 ### Numerically evaluate transforms (compare with output of tf_echo)
 # print("T0_1 = ", T0_1.evalf(subs={q1: 0.65, q2: 0.52, q3: -2.86, q4: 0, q5: 0, q6: 0}))
 # print("T0_2 = ", T0_2.evalf(subs=vals))
 # print("T0_3 = ", T0_3.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
+print("T0_4 = ", T0_4.evalf(subs=vals))
 # print("T0_4 = ", T0_4.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
 # print("T0_5 = ", T0_5.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
 # print("T0_6 = ", T0_6.evalf(subs={q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0}))
@@ -160,10 +161,10 @@ t4 = int(round(time.time() * 1000)) - start
 print("t4: %d ms"%t4)
 
 
-T_total = simplify(T0_G * R_corr)
-T_tot_num = T_total.evalf(subs=vals)
-print("T_total = ", T_tot_num)
-getEulerAngles(T_tot_num[0:4,0:4])
+# T_total = simplify(T0_G * R_corr)
+# T_tot_num = T_total.evalf(subs=vals)
+# print("T_total = ", T_tot_num)
+# getEulerAngles(T_tot_num[0:4,0:4])
 
 
 end = int(round(time.time() * 1000)) - start

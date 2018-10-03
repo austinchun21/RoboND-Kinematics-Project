@@ -62,11 +62,109 @@ def test_code(test_case):
     ########################################################################################
     ## 
 
-    ## Insert IK code here!
+
+    ### Forward Kinematics
+
+    ### Create symbols for joint variables
+    q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8') # theta_i
+    d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
+    a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
+    alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
+    ### KUKA KR210
+    # DH Parameters
+    s = {alpha0: 0,     a0: 0,      d1: 0.75,       
+         alpha1: -pi/2, a1: 0.35,   d2: 0,      q2: q2-pi/2,
+         alpha2: 0,     a2: 1.25,   d3: 0,
+         alpha3: -pi/2, a3: -0.054, d4: 1.50,
+         alpha4:  pi/2, a4: 0,      d5: 0,
+         alpha5: -pi/2, a5: 0,      d6: 0,
+         alpha6: 0,     a6: 0,      d7: 0.303,  q7: 0
+        }
+    ### Homogenous Transforms
+    # base_link to link_1
+    T0_1 = Matrix([[ cos(q1),            -sin(q1),             0,                     a0],
+                   [ sin(q1)*cos(alpha0), cos(q1)*cos(alpha0), -sin(alpha0), -sin(alpha0)*d1], 
+                   [ sin(q1)*sin(alpha0), cos(q1)*sin(alpha0),  cos(alpha0),  cos(alpha0)*d1],
+                   [ 0,                   0,                   0,            1] 
+                  ])
+    T0_1 = T0_1.subs(s)
+    # link_1 to link_2
+    T1_2 = Matrix([[ cos(q2),            -sin(q2),             0,                     a1],
+                   [ sin(q2)*cos(alpha1), cos(q2)*cos(alpha1), -sin(alpha1), -sin(alpha1)*d2], 
+                   [ sin(q2)*sin(alpha1), cos(q2)*sin(alpha1),  cos(alpha1),  cos(alpha1)*d2],
+                   [ 0,                   0,                   0,            1] 
+                  ])
+    T1_2 = T1_2.subs(s)
+
+    T0_2 = T0_1 * T1_2
+
+    ## Extract end-effector position and orientation from request
+    # px,py,pz = end-effector position
+    px = req.poses[x].position.x
+    py = req.poses[x].position.y
+    pz = req.poses[x].position.z
+    # roll, pitch, yaw = end-effector orientation
+    (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
+            [req.poses[x].orientation.x, req.poses[x].orientation.y,
+             req.poses[x].orientation.z, req.poses[x].orientation.w])
+
+    ## Construct Rrpy (with roll pitch yaw and corr)
+    Ryaw = Matrix([[ cos(yaw), -sin(yaw), 0],
+                   [ sin(yaw),  cos(yaw), 0],
+                   [ 0, 0, 1]])
+    Rpitch = Matrix([[ cos(pitch), 0, sin(pitch)],
+                  [             0, 1, 0,],
+                  [ -sin(pitch), 0, cos(pitch)]])
+    Rroll = Matrix([[ 1, 0, 0],
+                    [ 0, cos(roll), -sin(roll)],
+                    [ 0, sin(roll),  cos(roll)]])
+    R_z = Matrix([[ cos(np.pi), -sin(np.pi), 0],
+              [ sin(np.pi),  cos(np.pi), 0],
+              [       0,        0, 1]])
+    R_y = Matrix([[ cos(-np.pi/2), 0, sin(-np.pi/2)],
+                  [             0, 1, 0,],
+                  [ -sin(-np.pi/2), 0, cos(-np.pi/2)]])
+    R_corr = simplify(R_z * R_y)
+
+    Rrpy = Ryaw * Rpitch * Rroll * R_corr
+
+    ## Extract nx, ny, nz from Rrpy
+    nx, ny, nz = Rrpy[0:3,2]
+
+    ## Calculate wrist position
+    d6 = 0 
+    l = 0.303 # meters between gripper and spherical wrist center (link 5)
+
+    wx = px - (d6+l)*nx
+    wy = py - (d6+l)*ny
+    wz = pz - (d6+l)*nz
+
+    ## Solve Position IK (Theta 1-3)
+    # Solve Theta 1
+    theta1 = tan(wy / wx) # From birds-eye, get angle using projection onto XY-plane
+
+    # Solve Theta 2
+    # First get Link2 global position
+    print("T0_2: ", T0_2.evalf(subs={q1:theta1, q2:0}))
+    x2, y2, z2 = T0_2.evalf(subs={q1:theta1, q2:0})[0:3,3] 
+
+    flr = sqrt( (wx-x2)**2 + (wy-y2)**2 ) # Projection of hypotenuse onto xy-plane
+    hyp = sqrt( (wx-x2)**2 + (wy-y2)**2 + (wz-z2)**2) # distance from Link2 to WristCenter
+    l2 = 1.25 # distance from Link2 to Link3
+    l3 = sqrt((0.96+0.54)**2 + (-0.054)**2) # Distance from Link3 to WC (Link5)
+
+    theta2 = np.pi/2 - cos(flr/hyp) - acos( (l3**2 - l2**2 - hyp**2) / ( 2*l2*hyp))
+
+    theta3 = np.pi - acos( (hyp**2 - l2**2 - l3**2) / (2*l2*l3))
+
+    print("Theta 1: %.3f"%theta1)
+    print("Theta 2: %.3f"%theta2)
+    print("Theta 3: %.3f"%theta3)
+
     
-    theta1 = 0
-    theta2 = 0
-    theta3 = 0
+    # theta1 = 0
+    # theta2 = 0
+    # theta3 = 0
     theta4 = 0
     theta5 = 0
     theta6 = 0
