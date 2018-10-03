@@ -2,7 +2,7 @@ from sympy import *
 from time import time
 from mpmath import radians
 import tf
-
+import numpy as np
 '''
 Format of test case is [ [[EE position],[EE orientation as quaternions]],[WC location],[joint angles]]
 You can generate additional test cases by setting up your kuka project and running `$ roslaunch kuka_arm forward_kinematics.launch`
@@ -81,22 +81,56 @@ def test_code(test_case):
          alpha6: 0,     a6: 0,      d7: 0.303,  q7: 0
         }
     ### Homogenous Transforms
-    # base_link to link_1
     T0_1 = Matrix([[ cos(q1),            -sin(q1),             0,                     a0],
                    [ sin(q1)*cos(alpha0), cos(q1)*cos(alpha0), -sin(alpha0), -sin(alpha0)*d1], 
                    [ sin(q1)*sin(alpha0), cos(q1)*sin(alpha0),  cos(alpha0),  cos(alpha0)*d1],
                    [ 0,                   0,                   0,            1] 
                   ])
     T0_1 = T0_1.subs(s)
-    # link_1 to link_2
     T1_2 = Matrix([[ cos(q2),            -sin(q2),             0,                     a1],
                    [ sin(q2)*cos(alpha1), cos(q2)*cos(alpha1), -sin(alpha1), -sin(alpha1)*d2], 
                    [ sin(q2)*sin(alpha1), cos(q2)*sin(alpha1),  cos(alpha1),  cos(alpha1)*d2],
                    [ 0,                   0,                   0,            1] 
                   ])
     T1_2 = T1_2.subs(s)
+    T2_3 = Matrix([[ cos(q3),            -sin(q3),             0,                     a2],
+                   [ sin(q3)*cos(alpha2), cos(q3)*cos(alpha2), -sin(alpha2), -sin(alpha2)*d3], 
+                   [ sin(q3)*sin(alpha2), cos(q3)*sin(alpha2),  cos(alpha2),  cos(alpha2)*d3],
+                   [ 0,                   0,                   0,            1] 
+                  ])
+    T2_3 = T2_3.subs(s)
+    T3_4 = Matrix([[ cos(q4),            -sin(q4),             0,                     a3],
+                   [ sin(q4)*cos(alpha3), cos(q4)*cos(alpha3), -sin(alpha3), -sin(alpha3)*d4], 
+                   [ sin(q4)*sin(alpha3), cos(q4)*sin(alpha3),  cos(alpha3),  cos(alpha3)*d4],
+                   [ 0,                   0,                   0,            1] 
+                  ])
+    T3_4 = T3_4.subs(s)
+    T4_5 = Matrix([[ cos(q5),            -sin(q5),             0,                     a4],
+                   [ sin(q5)*cos(alpha4), cos(q5)*cos(alpha4), -sin(alpha4), -sin(alpha4)*d5], 
+                   [ sin(q5)*sin(alpha4), cos(q5)*sin(alpha4),  cos(alpha4),  cos(alpha4)*d5],
+                   [ 0,                   0,                   0,            1] 
+                  ])
+    T4_5 = T4_5.subs(s)
+    T5_6 = Matrix([[ cos(q6),            -sin(q6),             0,                     a5],
+                   [ sin(q6)*cos(alpha5), cos(q6)*cos(alpha5), -sin(alpha5), -sin(alpha5)*d6], 
+                   [ sin(q6)*sin(alpha5), cos(q6)*sin(alpha5),  cos(alpha5),  cos(alpha5)*d6],
+                   [ 0,                   0,                   0,            1] 
+                  ])
+    T5_6 = T5_6.subs(s)
+    T6_G = Matrix([[ cos(q7),            -sin(q7),             0,                     a6],
+                   [ sin(q7)*cos(alpha6), cos(q7)*cos(alpha6), -sin(alpha6), -sin(alpha6)*d7], 
+                   [ sin(q7)*sin(alpha6), cos(q7)*sin(alpha6),  cos(alpha6),  cos(alpha6)*d7],
+                   [ 0,                   0,                   0,            1] 
+                  ])
+    T6_G = T6_G.subs(s)
 
-    T0_2 = T0_1 * T1_2
+    # Composition of Homogenous Transforms
+    T0_2 = (T0_1 * T1_2) # base_link to link_2
+    T0_3 = (T0_2 * T2_3)
+    T0_4 = (T0_3 * T3_4)
+    T0_5 = (T0_4 * T4_5)
+    T0_6 = (T0_5 * T5_6)
+    T0_G = (T0_6 * T6_G)
 
     ## Extract end-effector position and orientation from request
     # px,py,pz = end-effector position
@@ -139,23 +173,29 @@ def test_code(test_case):
     wy = py - (d6+l)*ny
     wz = pz - (d6+l)*nz
 
-    ## Solve Position IK (Theta 1-3)
+    print("WC: ",wx,wy,wz)
+
+    ################################### 
+    ## Solve Position IK (Theta 1-3) ##
+    ################################### 
     # Solve Theta 1
-    theta1 = tan(wy / wx) # From birds-eye, get angle using projection onto XY-plane
+    theta1 = atan2(wy,wx) # From birds-eye, get angle using projection onto XY-plane
 
     # Solve Theta 2
     # First get Link2 global position
     print("T0_2: ", T0_2.evalf(subs={q1:theta1, q2:0}))
     x2, y2, z2 = T0_2.evalf(subs={q1:theta1, q2:0})[0:3,3] 
 
+    print("Link2: ",x2,y2,z2)
+
     flr = sqrt( (wx-x2)**2 + (wy-y2)**2 ) # Projection of hypotenuse onto xy-plane
     hyp = sqrt( (wx-x2)**2 + (wy-y2)**2 + (wz-z2)**2) # distance from Link2 to WristCenter
     l2 = 1.25 # distance from Link2 to Link3
     l3 = sqrt((0.96+0.54)**2 + (-0.054)**2) # Distance from Link3 to WC (Link5)
+    print("Flr: %.3f, Hyp: %.3f, l2: %.3f, l3: %.3f"%(flr, hyp, l2, l3))
+    theta2 = np.pi/2 - acos(flr/hyp) - acos( (l3**2 - l2**2 - hyp**2) / ( -2*l2*hyp))
 
-    theta2 = np.pi/2 - cos(flr/hyp) - acos( (l3**2 - l2**2 - hyp**2) / ( 2*l2*hyp))
-
-    theta3 = np.pi - acos( (hyp**2 - l2**2 - l3**2) / (2*l2*l3))
+    theta3 = np.pi/2 - acos( (hyp**2 - l2**2 - l3**2) / (-2*l2*l3))
 
     print("Theta 1: %.3f"%theta1)
     print("Theta 2: %.3f"%theta2)
@@ -175,6 +215,8 @@ def test_code(test_case):
     ########################################################################################
     ## For additional debugging add your forward kinematics here. Use your previously calculated thetas
     ## as the input and output the position of your end effector as your_ee = [x,y,z]
+
+    print("T0_4: ",T0_4.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:0}))
 
     ## (OPTIONAL) YOUR CODE HERE!
 
@@ -234,6 +276,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 1
+    test_case_number = 3
 
     test_code(test_cases[test_case_number])
