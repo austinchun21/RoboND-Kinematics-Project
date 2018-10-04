@@ -243,17 +243,21 @@ def test_code(test_case):
 
     # R3_6 = R0_3.inv("LU") * Rrpy
     R3_6 = R0_3.T * Rrpy
-    # print("R3_6",R3_6)
+    print("R3_6",R3_6)
 
     # print("th4():",(-R3_6[0,2] / sin(theta5) +1)%2-1)
     # print("th4():",-R3_6[0,2] / sin(theta5) )
     theta5 = acos( R3_6[1,2] )
     theta4 = acos(-R3_6[0,2] / sin(theta5))
     theta6 = acos( R3_6[1,0] / sin(theta5))
+    theta41 = asin(R3_6[2,2] / sin(theta5))
+    theta61 = asin(R3_6[1,1] / sin(theta5))
 
     print("Theta 4: %.3f"%theta4)
+    print("Theta 41: %.3f"%theta41)
     print("Theta 5: %.3f"%theta5)
     print("Theta 6: %.3f"%theta6)
+    print("Theta 61: %.3f"%theta61)
 
     ## 
     ########################################################################################
@@ -272,12 +276,21 @@ def test_code(test_case):
     # print("T0_4: ",T0_4.evalf(subs=vals))
     # print("T0_G: ",T0_G.evalf(subs=vals))
     R_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]]))
+    T0_G_num = T0_G.evalf(subs=vals)
+    # print("T0_G_num", T0_G_num)
+    # print("R_corr", R_corr)
     T_tot = T0_G * R_corr
+    # print("T_tot", T_tot)
+
     # print("T_tot: ",T_tot.evalf(subs=vals))
+    # getEulerAngles(T_tot.evalf(subs=vals)[0:4,0:4])
 
-    getEulerAngles(T_tot.evalf(subs=vals)[0:4,0:4])
-
-    
+    # Extract wrist pose from FK
+    wx_fk, wy_fk, wz_fk = T0_4.evalf(subs=vals)[0:3,3]
+    print("Wrist Center: ", wx_fk, wy_fk, wz_fk)
+    # Extract wrist pose from FK
+    eex_fk, eey_fk, eez_fk = T_tot.evalf(subs=vals)[0:3,3]
+    print("EE Pose: ", eex_fk, eey_fk, eez_fk)
 
 
     ## (OPTIONAL) YOUR CODE HERE!
@@ -286,8 +299,8 @@ def test_code(test_case):
     ########################################################################################
 
     ## For error analysis please set the following variables of your WC location and EE location in the format of [x,y,z]
-    your_wc = [1,1,1] # <--- Load your calculated WC values in this array
-    your_ee = [1,1,1] # <--- Load your calculated end effector value from your forward kinematics
+    your_wc = [wx_fk, wy_fk, wz_fk] # <--- Load your calculated WC values in this array
+    your_ee = [eex_fk, eey_fk, eez_fk] # <--- Load your calculated end effector value from your forward kinematics
     ########################################################################################
 
     ## Error analysis
@@ -338,6 +351,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 2
+    test_case_number = 3
 
     test_code(test_cases[test_case_number])
