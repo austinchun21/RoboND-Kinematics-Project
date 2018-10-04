@@ -9,7 +9,17 @@
 
 # Author: Harsh Pandya
 
-# import modules
+
+# IK_server.py
+#   Server script for controlling KUKA robotic arm in pick-and-place simulation.
+#   Service takes in list of trajectory positions (of the gripper), and uses Inverse
+#   Kinematics to determine the corresponding joint angles (theta1-theta6).
+#
+#   Author: Austin Chun <austinchun21@gmail.com>
+#   Date:   Oct 2018
+
+
+# Import modules
 import rospy
 import tf
 from kuka_arm.srv import *
@@ -23,13 +33,15 @@ import numpy as np
 ##########################
 ### Forward Kinematics ###
 ##########################
-### Create symbols for joint variables
+## FK code set as global variables (outside functions) to avoid redundant calculations.
+## All matrices are multiplied here, then evaluated within the functions
+## 
+# Create symbols for joint variables
 q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8') # theta_i
 d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
 a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
 alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
-### KUKA KR210
-# DH Parameters
+# KUKA KR210 DH Parameters
 s = {alpha0: 0,     a0: 0,      d1: 0.75,       
      alpha1: -pi/2, a1: 0.35,   d2: 0,      q2: q2-pi/2,
      alpha2: 0,     a2: 1.25,   d3: 0,
@@ -38,7 +50,7 @@ s = {alpha0: 0,     a0: 0,      d1: 0.75,
      alpha5: -pi/2, a5: 0,      d6: 0,
      alpha6: 0,     a6: 0,      d7: 0.303,  q7: 0
     }
-### Homogenous Transforms
+# Homogenous Transforms (from base_link thru gripper)
 T0_1 = Matrix([[ cos(q1),            -sin(q1),             0,                     a0],
                [ sin(q1)*cos(alpha0), cos(q1)*cos(alpha0), -sin(alpha0), -sin(alpha0)*d1], 
                [ sin(q1)*sin(alpha0), cos(q1)*sin(alpha0),  cos(alpha0),  cos(alpha0)*d1],
@@ -83,7 +95,7 @@ T6_G = Matrix([[ cos(q7),            -sin(q7),             0,                   
 T6_G = T6_G.subs(s)
 
 # Composition of Homogenous Transforms
-T0_2 = (T0_1 * T1_2) # base_link to link_2
+T0_2 = (T0_1 * T1_2)
 T0_3 = (T0_2 * T2_3)
 T0_4 = (T0_3 * T3_4)
 T0_5 = (T0_4 * T4_5)
@@ -92,8 +104,8 @@ T0_G = (T0_6 * T6_G)
 
 
 
-q = symbols("q")
-## Construct Rrpy (with roll pitch yaw and corr)
+# Standard rotation matrices (Z,Y,X)
+q = symbols("q") # use symbol, then evaluate inside functions
 Ryaw = Matrix([[ cos(q), -sin(q), 0],
                [ sin(q),  cos(q), 0],
                [ 0, 0, 1]])
@@ -103,7 +115,7 @@ Rpitch = Matrix([[ cos(q), 0, sin(q)],
 Rroll = Matrix([[ 1, 0, 0],
                 [ 0, cos(q), -sin(q)],
                 [ 0, sin(q),  cos(q)]])
-
+# Rotation correction for DH to URDF definitions
 R_z = Matrix([[ cos(np.pi), -sin(np.pi), 0],
               [ sin(np.pi),  cos(np.pi), 0],
               [ 0, 0, 1]])
@@ -111,8 +123,9 @@ R_y = Matrix([[ cos(-np.pi/2), 0, sin(-np.pi/2)],
               [             0, 1, 0,],
               [-sin(-np.pi/2), 0, cos(-np.pi/2)]])
 R_corr = (R_z * R_y)
+R_corr_4x4 = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]])) # 4x4 version
 
-R_corr_4x4 = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]]))
+# Setup total Transformation matrix (from base_link to gripper with correction)
 T_tot = T0_G * R_corr_4x4
 
 
@@ -123,23 +136,7 @@ def handle_calculate_IK(req):
         return -1
     else:
 
-        ### Your FK code here
-        # Create symbols
-	#
-	#
-	# Create Modified DH parameters
-	#
-	#
-	# Define Modified DH Transformation matrix
-	#
-	#
-	# Create individual transformation matrices
-	#
-	#
-	# Extract rotation matrices from the transformation matrices
-	#
-	#
-        ###
+        ### FK code is outside function, that way only calculated once.
 
         # Initialize service response
         joint_trajectory_list = []
@@ -158,11 +155,10 @@ def handle_calculate_IK(req):
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-            ### Your IK code here
-        
-        ########################
-	    ## Inverse Kinematics ##
-        ########################
+       
+        ##########################
+	    ### Inverse Kinematics ###
+        ##########################
         # Compensate for rotation discrepancy between DH parameters and Gazebo
         # Calculate rotation of gripper, relative to base_link, using roll,pitch,yaw, and correction
         Rrpy = Ryaw.evalf(subs={q:yaw}) * Rpitch.evalf(subs={q:pitch}) * Rroll.evalf(subs={q:roll}) * R_corr
@@ -202,10 +198,8 @@ def handle_calculate_IK(req):
         theta5 = atan2(sqrt(R3_6[0,2]*R3_6[0,2] + R3_6[2,2]*R3_6[2,2]), R3_6[1,2])
         theta6 = atan2(-R3_6[1,1],R3_6[1,0])
 
-            ###
 
-            # Populate response for the IK request
-            # In the next line replace theta1,theta2...,theta6 by your joint angle variables
+        # Populate response for the IK request
         joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
         joint_trajectory_list.append(joint_trajectory_point)
 
