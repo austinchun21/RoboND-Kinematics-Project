@@ -46,7 +46,10 @@ test_cases = {1:[[[2.16135,-1.42635,1.55109],
                   [0.01735,-0.2179,0.9025,0.371016]],
                   [-1.1669,-0.17989,0.85137],
                   [-2.99,-0.12,0.94,4.06,1.29,-4.12]],
-              4:[],
+              4:[[[1.9315, -0.22919, 2.127],
+                  [0.0928188, -0.426753,-0.42789,0.791313]],
+                  [1.8499, 0, 1.9464],
+                  [0.51,0.62,0.80,-2.17,-1.00,-4.22]],
               5:[]}
 
 
@@ -245,19 +248,126 @@ def test_code(test_case):
     R3_6 = R0_3.T * Rrpy
     print("R3_6",R3_6)
 
+
+    A = R3_6[1,2]
+    B = R3_6[0,2]
+    C = R3_6[1,0]
+
+    q5p = acos(A)
+    q5n = -q5p
+
+    q4p = [x%(2*np.pi) for x in [acos(-B/sin(q5p)), -acos(-B/sin(q5p))]]
+    q4n = [x%(2*np.pi) for x in [acos(-B/sin(q5n)), -acos(-B/sin(q5n))]]
+    q6p = [x%(2*np.pi) for x in [acos( C/sin(q5p)), -acos( C/sin(q5p))]]
+    q6n = [x%(2*np.pi) for x in [acos( C/sin(q5n)), -acos( C/sin(q5n))]]
+
+    print("--------------------")
+    print("q5: ",q5p, q5n)
+    print("q4: ",q4p, q4n)
+    print("q6: ",q6p, q6n)
+
+
+    # alph = acos(A)
+    # q5a = [alph, -alph]
+
+    # beta = B/sin(alph)
+    # q4a = [ acos(-beta), acos(beta), -acos(-beta), -acos(beta)]
+
+    # gamm = C/sin(alph)
+    # q6a = [ acos(gamm), acos(-gamm), -acos(gamm), -acos(-gamm)] 
+    # print("--------------------")
+    # print("q5: ",q5a)
+    # print("q4: ",q4a)
+    # print("q6: ",q6a)
+    print("--------------------")
+
+
+    A = R3_6[1,2]
+    B = R3_6[0,2]
+    C = R3_6[2,2]
+    D = R3_6[1,0]
+    E = R3_6[1,1]
+
+    alph = acos(A)
+    q5p = alph
+    q5n = -alph
+
+    q4p =  acos(-B/sin(alph))
+    q4n = -acos( B/sin(alph))
+    if(C < 0):
+        q4p = -q4p
+        q4n = -q4n
+
+    q6p = -acos( D/sin(alph))
+    q6n =  acos(-D/sin(alph))
+    if(E < 0):
+        q6p = -q6p
+        q6n = -q6n
+
+
+    print("Q_pos:",[x%(2*np.pi) for x in [q4p, q5p, q6p]])
+    print("Q_neg:",[x%(2*np.pi) for x in [q4n, q5n, q6n]])
+
+    # print("--------------------")
+
+    # alph = acos(A)
+    # # If q5 = alph
+    # q4p_c = [acos(-B/sin(alph)), -acos(-B/sin(alph))]
+    # q4p_s = [asin(C/sin(alph)), np.pi/2-asin(C/sin(alph))]
+    # q4p_c = [x%(2*np.pi) for x in q4p_c]
+    # q4p_s = [x%(2*np.pi) for x in q4p_s]
+
+
+    # q6p_c = [acos(D/sin(alph)), -acos(D/sin(alph))]
+    # q6p_s = [asin(-E/sin(alph)), np.pi/2-asin(-E/sin(alph))]
+    # q6p_c = [x%(2*np.pi) for x in q6p_c]    
+    # q6p_s = [x%(2*np.pi) for x in q6p_s]
+
+    # # If q5 = -alph
+    # q4n_c = [acos(B/sin(alph)), -acos(B/sin(alph))]
+    # q4n_s = [asin(-C/sin(alph)), np.pi/2-asin(-C/sin(alph))]
+    # q4n_c = [x%(2*np.pi) for x in q4n_c]
+    # q4n_s = [x%(2*np.pi) for x in q4n_s]
+
+    # q6n_c = [acos(-D/sin(alph)), -acos(-D/sin(alph))]
+    # q6n_s = [asin(E/sin(alph)), np.pi/2-asin(E/sin(alph))]
+    # q6n_c = [x%(2*np.pi) for x in q6n_c]    
+    # q6n_s = [x%(2*np.pi) for x in q6n_s]
+
+    # print("q5p: ", alph)
+    # print("q4p: ", q4p_c, q4p_s)
+    # print("q6p: ", q6p_c, q6p_s)
+    # print("")
+    # print("q5n: ", -alph)
+    # print("q4n: ", q4n_c, q4n_s)
+    # print("q6n: ", q6n_c, q6n_s)
+    print("--------------------")
+
+
+
+    ######################
+    ## Euler from R3_6 ##
+
+    theta4 = atan2(R3_6[2,2],-R3_6[0,2])
+    theta5 = atan2(sqrt(R3_6[0,2]*R3_6[0,2] + R3_6[2,2]*R3_6[2,2]), R3_6[1,2])
+    theta6 = atan2(-R3_6[1,1],R3_6[1,0])
+
+
+    print("diff: ", theta4-gamma, theta5-beta, theta6-alpha)
+
     # print("th4():",(-R3_6[0,2] / sin(theta5) +1)%2-1)
     # print("th4():",-R3_6[0,2] / sin(theta5) )
-    theta5 = acos( R3_6[1,2] )
-    theta4 = acos(-R3_6[0,2] / sin(theta5))
-    theta6 = acos( R3_6[1,0] / sin(theta5))
-    theta41 = asin(R3_6[2,2] / sin(theta5))
-    theta61 = asin(R3_6[1,1] / sin(theta5))
+    # theta5 = acos( R3_6[1,2] )
+    # theta4 = acos(-R3_6[0,2] / sin(theta5))
+    # theta6 = acos( R3_6[1,0] / sin(theta5))
+    # theta41 = asin(R3_6[2,2] / sin(theta5))
+    # theta61 = asin(R3_6[1,1] / sin(theta5))
 
     print("Theta 4: %.3f"%theta4)
-    print("Theta 41: %.3f"%theta41)
     print("Theta 5: %.3f"%theta5)
     print("Theta 6: %.3f"%theta6)
-    print("Theta 61: %.3f"%theta61)
+    # print("Theta 41: %.3f"%theta41)
+    # print("Theta 61: %.3f"%theta61)
 
     ## 
     ########################################################################################
@@ -351,6 +461,7 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 3
+    test_case_number = 4
+
 
     test_code(test_cases[test_case_number])
