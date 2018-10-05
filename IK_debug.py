@@ -233,7 +233,7 @@ def test_code(test_case):
     l2 = 1.25 # distance from Link2 to Link3
     l3 = sqrt((0.96+0.54)**2 + (-0.054)**2) # Distance from Link3 to WC (Link5)
     theta2 = np.pi/2 - acos(flr/hyp) - acos( (l3**2 - l2**2 - hyp**2) / ( -2*l2*hyp))
-    theta3 = np.pi/2 - acos( (hyp**2 - l2**2 - l3**2) / (-2*l2*l3))
+    theta3 = np.pi/2-atan2(0.054,1.5) - acos( (hyp**2 - l2**2 - l3**2) / (-2*l2*l3))
 
     print("t2: ",time()-start_time)
 
