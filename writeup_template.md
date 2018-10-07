@@ -1,25 +1,9 @@
 ## Project: Kinematics Pick & Place
-### Writeup Template: You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
-
----
-
-
-**Steps to complete the project:**  
-
-
-1. Set up your ROS Workspace.
-2. Download or clone the [project repository](https://github.com/udacity/RoboND-Kinematics-Project) into the ***src*** directory of your ROS Workspace.  
-3. Experiment with the forward_kinematics environment and get familiar with the robot.
-4. Launch in [demo mode](https://classroom.udacity.com/nanodegrees/nd209/parts/7b2fd2d7-e181-401e-977a-6158c77bf816/modules/8855de3f-2897-46c3-a805-628b5ecf045b/lessons/91d017b1-4493-4522-ad52-04a74a01094c/concepts/ae64bb91-e8c4-44c9-adbe-798e8f688193).
-5. Perform Kinematic Analysis for the robot following the [project rubric](https://review.udacity.com/#!/rubrics/972/view).
-6. Fill in the `IK_server.py` with your Inverse Kinematics code. 
-
+### Austin Chun
+### October 2018
 
 [//]: # (Image References)
 
-[image1]: ./misc_images/misc1.png
-[image2]: ./misc_images/misc3.png
-[image3]: ./misc_images/misc2.png
 [joints_links]: ./writeup_images/label_joints_links.png
 [axis_origins]: ./writeup_images/axis_origins.png
 [dh_params]: ./writeup_images/DH_params.png
@@ -27,6 +11,13 @@
 [trans_mat]: ./writeup_images/trans_mat.png
 [corr_mat]: ./writeup_images/corr_mat.png
 [theta23]: ./writeup_images/theta23.jpg
+[theta456]: ./writeup_images/theta456.jpg
+[DisplayPath]: ./writeup_images/DisplayPath.png
+[ReachedTarget]: ./writeup_images/ReachedTarget.png
+[DisplayDropOff]: ./writeup_images/DisplayDropoff.png
+[ReachedDropOff]: ./writeup_images/ReachedDropoff.png
+
+
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/972/view) Points
 ### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
@@ -41,7 +32,7 @@ You're reading it!
 ### Kinematic Analysis
 #### 1. Run the forward_kinematics demo and evaluate the kr210.urdf.xacro file to perform kinematic analysis of Kuka KR210 robot and derive its DH parameters.
 
-Following the DH PArameter Assignment algorithm, explained in Lesson 12.13, the first steps are to label all joints and links, then assign the axes (Z first, then X) for each link. The video guide in the KR210 Forward Kinematics 1 section provides the following joint/link labels, and corresponding axes assignments.
+Following the DH Parameter Assignment algorithm, explained in Lesson 12.13, the first steps are to label all joints and links, then assign the axes (Z first, then X) for each link. The video guide in the KR210 Forward Kinematics 1 section provides the following joint/link labels, and corresponding axes assignments.
 
 ![label joints and links][joints_links]
 ![label axis and origins][axis_origins]
@@ -56,7 +47,7 @@ Lastly, the actual dimensions of the links can be extracted from the kr210.urdf.
 
 The resulting DH Table is as follows:
 
-#### \   DH Parameter Table
+#### DH Parameter Table
 i   | Links | alpha(i-1) | a(i-1) | d(i)   | theta(i)
 --- | ---   | ---        | ---    | ---    | ---
 1   | 0->1  | 0          | 0      | 0.75   | q1
@@ -80,7 +71,7 @@ Thus, to get the transformation matrix from the base_link to the gripper_link, s
 
 `T0_G = T0_1*T1_2*T2_3*T3_4*T4_5*T5_6*T6_G`
 
-To account for the difference in refrence frame orientation between the DH convention and the URDF of the gripper link, first apply a body-fixed rotation about the Z-axis by pi, then a rotation about the X-axis by -pi/2. The transformation matrix for this correction can be derived as below:
+To account for the difference in reference frame orientation between the DH convention and the URDF of the gripper link, first apply a body-fixed rotation about the Z-axis by pi, then a rotation about the X-axis by -pi/2. The transformation matrix for this correction can be derived as below:
 
 ![corr_mat][corr_mat]
 
@@ -107,26 +98,45 @@ First, from the end-effector position, we need to determine the location of the 
 
     `wz = pz - (d6+l)*nz`
 
-Now with the wrist center `(wx,wy,wz)`, the first angle can be easilly calculated, because q1 is simply the angle the arm makes projected to the xy-plane. Thus,
+Now with the wrist center `(wx,wy,wz)`, the first angle can be easily calculated, because q1 is simply the angle the arm makes projected to the xy-plane. Thus,
 
 `theta1 = atan2(wy,wx)`
 
-As for theta2 and theta3, the Project page hints to use the law of cosines. The derivation of the equations are below. The sides of the triangles can be calculated using pythagorean theorem
+As for theta2 and theta3, the Project page instructs to use the law of cosines. The derivation of the equations are below. The sides of the triangles can be calculated using Pythagorean theorem. 
 
 ![theta23][theta23]
 
 ##### Inverse Orientation Kinematics
+Instructions to derive the orientation kinematics are shown in Project Section 15. 
+Extract the total rotation matrix from the base_link to the gripper in terms of roll-pitch-yaw, along with the correction.
+
+`Rrpy = Rot(Z, yaw) * Rot(Y, pitch) * Rot(X, roll) * R_corr`
+
+Which equals
+
+`R0_6 = R0_1*R1_2*R2_3*R3_4*R4_5*R5_6 = Rrpy`
+
+Premultiply by inv(R0_3).
+
+`R3_6 = R3_4*R4_5*R5_6 = inv(R0_3)*Rrpy`
+
+The right side gives a known numerical value (given the first three angles). And the left side can be expressed analytically. The LHS was determined using sympy, multiplying out `R3_4*R4_5*R5_6` Thus the equations for theta4, theta5, and theta6 can be extracted, similar to extracting Euler Angles from a rotation matrix. (Using atan2() to avoid ambiguous results)
+![theta456][theta456]
+
 
 
 ### Project Implementation
 
 #### 1. Fill in the `IK_server.py` file with properly commented python code for calculating Inverse Kinematics based on previously performed Kinematic Analysis. Your code must guide the robot to successfully complete 8/10 pick and place cycles. Briefly discuss the code you implemented and your results. 
 
+As far as the Forward Kinematics (lines 33-129) and Inverse Kinematics (lines 159-199), the code is a relatively straightforward application of the analysis. 
 
-Here I'll talk about the code, what techniques I used, what worked and why, where the implementation might fail and how I might improve it if I were going to pursue this project further.  
+As recommended, I moved the Forward Kinematics portion out of the main loop, and actually placed in outside the function (as global variables) to avoid redundant calculations within the code. 
 
+In testing the code, the Inverse Kinematics seems to do pretty well. There are some instances where the planned path and the actual path vary drastically. One possible reason could be ambiguity from using acos() when solving for theta2, theta3 using Law of Cosines. But even when the path is drastically different, the robotic arm still successfully brings the can to the destination. When the path does vary drastically, the can sometimes collides with other objects (the ground, shelf, garbage can) and the gripper drops the can. Also, as mentioned in the Slack, there seems to be a common issue that the gripper either doesn't pick up the can from the shelf, or sometimes it drops the can while mid-path (no collisions). Similarly, it seems like using 'Continue' results in more errors compared to using 'Next'.
 
-And just for fun, another example image:
-![alt text][image3]
-
-
+Screenshots of succesful pickup
+![DisplayPath][DisplayPath]
+![ReachedTarget][ReachedTarget]
+![DisplayDropOff][DisplayDropOff]
+![ReachedDropOff][ReachedDropOff]
